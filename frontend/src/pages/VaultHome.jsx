@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ScanFace, ArrowRight, Lock, Sparkles, EyeOff, ScanLine, FolderOpen, BadgeCheck, FilePlus2, Activity, ShieldCheck, KeyRound, Timer, Fingerprint, Copy, Upload, ChevronRight, QrCode } from "lucide-react";
+import { ScanFace, ArrowRight, Lock, Sparkles, EyeOff, ScanLine, FolderOpen, BadgeCheck, FilePlus2, Activity, ShieldCheck, KeyRound, Timer, Fingerprint, Copy, Upload, ChevronRight, QrCode, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg, fmt } from "@/lib/api";
 import { Loader, StatusBadge, ActivityList, EmptyState } from "@/components/Shared";
@@ -38,7 +38,7 @@ function VaultSection({ docs, enrolled, onOpen, onUpload }) {
       <div className="mt-4 flex gap-1 overflow-x-auto border-b border-slate-100">
         {DOC_TABS.map(([k, l]) => <button key={k} onClick={() => setTab(k)} data-testid={`doc-tab-${k}`} className={`min-h-[44px] whitespace-nowrap px-3 text-sm ${tab === k ? "border-b-2 border-emerald-600 font-semibold text-emerald-800" : "text-slate-500 hover:text-slate-800"}`}>{l}</button>)}
       </div>
-      {!enrolled && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="face-required-notice">Enrol your face first — documents are linked to and unlocked by your face. <Link to="/vault/face" className="font-semibold underline">Enrol now</Link></p>}
+      {!enrolled && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="face-required-notice">Enrol your face first — complete the face, left/right turn and blink scan to unlock your vault. <Link to="/vault/face" className="font-semibold underline">Enrol now</Link></p>}
       <div className="mt-4">
         {rows.length === 0 ? <EmptyState title="No documents here yet" text="Upload your Aadhaar, PAN, Voter ID, Driving License or Passport. Files are encrypted and visible only to you." testId="docs-empty" /> : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{rows.slice(0, 8).map((d) => <DocCard key={d.id} doc={d} onOpen={onOpen} />)}</div>
@@ -85,7 +85,7 @@ function QuickActions({ onUpload }) {
 
 function RightColumn({ d }) {
   const p = d.profile;
-  const sec = [[ScanFace, "Face Recognition", d.face_enrolled ? "active" : "not set"], [Lock, "Encrypted Documents", "active"], [Fingerprint, "Liveness Detection", "not available"], [Timer, "Session Expiry", "active"]];
+  const sec = [[ScanFace, "Face Recognition", d.face_enrolled ? "active" : "not set"], [Eye, "Liveness (turn + blink)", d.liveness_verified ? "active" : "not set"], [Fingerprint, "Fingerprint", d.passkey_enrolled ? "active" : "not set"], [Lock, "Encrypted Documents", "active"], [Timer, "Session Expiry", "active"]];
   const copy = () => navigator.clipboard.writeText(p.trust_id).then(() => toast.success("TrustID copied")).catch(() => toast.error("Copy failed"));
   return (
     <aside className="flex w-full flex-col gap-5 xl:w-80 xl:shrink-0">
@@ -123,9 +123,9 @@ export default function VaultHome() {
   return (
     <div className="flex flex-col gap-6 xl:flex-row" data-testid="vault-home">
       <div className="flex min-w-0 flex-1 flex-col gap-6">
-        <Hero enrolled={d.face_enrolled} />
-        <VaultSection docs={d.documents} enrolled={d.face_enrolled} onOpen={setViewing} onUpload={setUpload} />
-        <QuickActions onUpload={(t) => (d.face_enrolled ? setUpload(t) : toast.error("Enrol your face first."))} />
+        <Hero enrolled={d.face_enrolled && d.liveness_verified} />
+        <VaultSection docs={d.documents} enrolled={d.face_enrolled && d.liveness_verified} onOpen={setViewing} onUpload={setUpload} />
+        <QuickActions onUpload={(t) => (d.face_enrolled && d.liveness_verified ? setUpload(t) : toast.error("Complete the face & liveness scan first."))} />
       </div>
       <RightColumn d={d} />
       <UploadDocDialog open={upload !== null} defaultType={upload || "aadhaar"} onClose={() => setUpload(null)} onUploaded={load} />

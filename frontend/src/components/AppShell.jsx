@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { NavLink, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Home, ScanFace, FolderLock, BadgeCheck, Activity, Settings, LifeBuoy, LayoutDashboard, QrCode, ShieldAlert, ScrollText, LogOut, Menu, X, Clock, Bell, Repeat } from "lucide-react";
+import { Home, ScanFace, FolderLock, BadgeCheck, Activity, Settings, LifeBuoy, LayoutDashboard, QrCode, ShieldAlert, ScrollText, LogOut, Menu, X, Clock, Bell, Repeat, KeyRound } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV = {
-  citizen: [["Home", "/vault", Home], ["Face Scan", "/vault/face", ScanFace], ["My Vault", "/vault/documents", FolderLock], ["Verifications", "/vault/consents", BadgeCheck], ["Activity", "/audit?portal=citizen", Activity]],
-  business: [["Dashboard", "/nexus", LayoutDashboard], ["QR Codes", "/nexus/qrs", QrCode], ["Activity", "/audit?portal=business", Activity]],
+  citizen: [["Home", "/vault", Home], ["Face Scan", "/vault/face", ScanFace], ["My Vault", "/vault/documents", FolderLock], ["Verifications", "/vault/consents", BadgeCheck], ["Permissions", "/vault/permissions", KeyRound], ["Activity", "/audit?portal=citizen", Activity]],
+  business: [["Dashboard", "/nexus", LayoutDashboard], ["Scan Face", "/nexus/scan", ScanFace], ["QR Codes", "/nexus/qrs", QrCode], ["Verified People", "/nexus/verifications", BadgeCheck], ["Activity", "/audit?portal=business", Activity]],
   government: [["Overview", "/sentinel", LayoutDashboard], ["Alerts", "/sentinel/alerts", ShieldAlert], ["Audit Log", "/audit?portal=government", ScrollText]],
 };
-const TAGLINE = { citizen: "Premium Identity Verification", business: "Business Verification Hub", government: "Government Verification" };
 
 export function usePortal() {
   const { pathname } = useLocation();

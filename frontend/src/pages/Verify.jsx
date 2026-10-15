@@ -20,6 +20,7 @@ function Result({ r }) {
           ))}
         </ul>
       )}
+      {r.proof_id && <Link to={`/proof/${r.proof_id}`} className="mt-4 block text-xs font-semibold text-emerald-700" data-testid="verify-proof-link">View signed proof {r.proof_id}</Link>}
       <Link to="/vault/consents" className="tid-btn-ghost mt-6" data-testid="verify-view-consents-btn">View my consents</Link>
     </div>
   );

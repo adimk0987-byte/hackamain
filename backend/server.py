@@ -45,12 +45,18 @@ api = APIRouter(prefix="/api")
 ROLES = ["citizen", "business", "government"]
 CLAIMS = {
     "full_name": "Full name",
-    "age_over_18": "Age 18+ eligibility",
-    "identity_verified": "Identity verification status",
+    "age_over_18": "Age 18+ (from declared date of birth)",
+    "identity_verified": "Face verified with liveness check",
+    "fingerprint_bound": "Device fingerprint / passkey bound",
     "city": "City of residence",
     "trust_id": "TrustID reference",
     "email": "Email address",
     "documents_on_file": "Document types on file (no contents)",
+    "aadhaar_on_file": "Aadhaar card on file",
+    "pan_on_file": "PAN card on file",
+    "voter_id_on_file": "Voter ID on file",
+    "driving_licence_on_file": "Driving licence on file",
+    "passport_on_file": "Passport on file",
 }
 DOC_TYPES = {"aadhaar": "Aadhaar Card", "pan": "PAN Card", "voter_id": "Voter ID", "driving_licence": "Driving Licence",
              "passport": "Passport", "other": "Other"}
@@ -172,7 +178,8 @@ async def best_face_match(descriptor, exclude_user=None):
 
 
 def public_user(u):
-    return {k: u.get(k) for k in ["user_id", "email", "name", "picture", "roles", "org_id", "face_enrolled", "auth_method", "created_at"]}
+    return {k: u.get(k) for k in ["user_id", "email", "name", "picture", "roles", "org_id", "face_enrolled", "liveness_verified",
+                                  "passkey_enrolled", "auth_method", "created_at"]}
 
 
 async def make_profile(user_id, name, email):
@@ -192,13 +199,16 @@ def age_of(dob):
 
 async def derive_claims(profile, claims):
     age = age_of(profile.get("dob"))
-    face = await db.face_templates.find_one({"user_id": profile["user_id"]}, {"_id": 1})
+    u = await db.users.find_one({"user_id": profile["user_id"]}, {"_id": 0}) or {}
+    face = u.get("face_enrolled") and u.get("liveness_verified")
     types = await db.documents.distinct("doc_type", {"user_id": profile["user_id"], "is_deleted": False})
     vals = {
         "full_name": profile["full_name"], "age_over_18": (age >= 18) if age is not None else "not provided",
         "identity_verified": bool(face), "city": profile.get("city") or "not provided",
         "trust_id": profile["trust_id"], "email": profile["email"],
         "documents_on_file": ", ".join(DOC_TYPES[t] for t in types) or "none",
+        "fingerprint_bound": bool(u.get("passkey_enrolled")),
+        **{f"{t}_on_file": t in types for t in ["aadhaar", "pan", "voter_id", "driving_licence", "passport"]},
     }
     return {c: vals[c] for c in claims if c in vals}
 
@@ -267,7 +277,12 @@ class FaceIn(BaseModel):
     _v = field_validator("descriptor")(validate_descriptor)
 
 
-class FaceRegisterIn(FaceIn):
+class LivenessIn(FaceIn):
+    pose_descriptors: List[List[float]] = Field(default_factory=list, max_length=4)
+    blink: bool = False
+
+
+class FaceRegisterIn(LivenessIn):
     name: str = Field(min_length=2, max_length=60)
     email: str = Field(min_length=5, max_length=120)
     consent: bool
@@ -288,8 +303,18 @@ class FaceRegisterIn(FaceIn):
         return v
 
 
-class FaceEnrollIn(FaceIn):
+class FaceEnrollIn(LivenessIn):
     consent: bool
+
+
+def check_liveness(body):
+    if len(body.pose_descriptors) < 2 or not body.blink:
+        return False
+    for p in body.pose_descriptors:
+        validate_descriptor(p)
+        if distance(p, body.descriptor) > 0.6:
+            err(400, "POSE_MISMATCH", "The left/right scans don't match the front scan. Keep only your face in frame and retry.")
+    return True
 
 
 class DemoLoginIn(BaseModel):
@@ -430,8 +455,9 @@ async def face_register(body: FaceRegisterIn, request: Request):
     if match and d < FACE_THRESHOLD:
         await audit("face_register_duplicate", decision="DENIED", severity="warn", request=request, detail="Duplicate face blocked")
         err(409, "DUPLICATE_FACE", "This face is already registered to another account. Please log in instead.")
+    live = check_liveness(body)
     user = {"user_id": uid("user"), "email": body.email, "name": body.name, "picture": None, "roles": ["citizen"],
-            "org_id": None, "face_enrolled": True, "created_at": iso(now())}
+            "org_id": None, "face_enrolled": True, "liveness_verified": live, "created_at": iso(now())}
     await db.users.insert_one(dict(user))
     await db.face_templates.insert_one({"user_id": user["user_id"], "enc": fernet.encrypt(json.dumps(body.descriptor).encode()).decode(),
                                         "consent_at": iso(now()), "created_at": iso(now())})
@@ -491,15 +517,17 @@ async def enroll_face(body: FaceEnrollIn, request: Request, user=Depends(get_use
         err(409, "DUPLICATE_FACE", "This face is already registered to another account.")
     await db.face_templates.update_one({"user_id": user["user_id"]}, {"$set": {
         "enc": fernet.encrypt(json.dumps(body.descriptor).encode()).decode(), "consent_at": iso(now()), "created_at": iso(now())}}, upsert=True)
-    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"face_enrolled": True}})
-    await audit("face_enrolled", actor=user, decision="ALLOWED", request=request)
+    live = check_liveness(body)
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"face_enrolled": True, "liveness_verified": live}})
+    await audit("face_enrolled", actor=user, decision="ALLOWED", request=request,
+                detail="Face + left/right + blink liveness" if live else "Front face only")
     return {"ok": True}
 
 
 @api.delete("/me/face")
 async def delete_face(request: Request, user=Depends(get_user)):
     await db.face_templates.delete_one({"user_id": user["user_id"]})
-    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"face_enrolled": False}})
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"face_enrolled": False, "liveness_verified": False}})
     await audit("face_template_deleted", actor=user, request=request)
     return {"ok": True}
 
@@ -537,6 +565,7 @@ async def vault_overview(user=Depends(require("citizen"))):
     profile["identity_status"] = "face_verified" if face else "unverified"
     return {
         "profile": profile, "face_enrolled": bool(face), "face_consent_at": face["consent_at"] if face else None,
+        "liveness_verified": bool(user.get("liveness_verified")), "passkey_enrolled": bool(user.get("passkey_enrolled")),
         "documents": docs, "doc_types": DOC_TYPES,
         "stats": {"documents": len(docs),
                   "verifications": sum(1 for s in sessions if s["decision"] == "ALLOWED"),
@@ -565,8 +594,8 @@ async def list_documents(user=Depends(require("citizen"))):
 async def upload_document(request: Request, file: UploadFile = File(...), doc_type: str = Form(...), title: str = Form(""),
                           user=Depends(require("citizen"))):
     rate_limit(f"docup:{user['user_id']}", 20, 600)
-    if not await db.face_templates.find_one({"user_id": user["user_id"]}, {"_id": 1}):
-        err(403, "FACE_REQUIRED", "Enrol FaceGate first so your documents are linked to your face.")
+    if not (user.get("face_enrolled") and user.get("liveness_verified")):
+        err(403, "FACE_REQUIRED", "Complete the biometric scan (face, left, right, blink) first so your documents are linked to your face.")
     if doc_type not in DOC_TYPES:
         err(400, "VALIDATION_ERROR", "Choose a valid document type.")
     ct = file.content_type
@@ -869,15 +898,19 @@ async def verify_respond(token: str, body: RespondIn, request: Request, user=Dep
     if decision == "ALLOWED":
         profile = await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0})
         released = await derive_claims(profile, q["claims"])
+    proof = None
     if decision in ("ALLOWED", "CONSENT_REQUIRED"):
-        await db.verification_sessions.insert_one({
-            "id": uid("vs"), "qr_id": q["id"], "qr_name": q["name"], "org_id": q["org_id"], "org_name": org["name"], "purpose": q["purpose"],
-            "citizen_id": user["user_id"], "citizen_label": user["name"], "requested_claims": q["claims"], "released_claims": released,
-            "decision": decision, "status": "active" if decision == "ALLOWED" else "declined", "created_at": iso(now())})
+        from extras import make_proof
+        vs = {"id": uid("vs"), "qr_id": q["id"], "qr_name": q["name"], "org_id": q["org_id"], "org_name": org["name"], "purpose": q["purpose"],
+              "channel": "qr", "citizen_id": user["user_id"], "citizen_label": user["name"], "requested_claims": q["claims"], "released_claims": released,
+              "decision": decision, "status": "active" if decision == "ALLOWED" else "declined", "created_at": iso(now())}
+        if decision == "ALLOWED":
+            vs["proof"] = proof = await make_proof(vs)
+        await db.verification_sessions.insert_one(vs)
     event = {"ALLOWED": "qr_redeemed", "CONSENT_REQUIRED": "qr_declined"}.get(decision, "qr_redeem_rejected")
     await audit(event, actor=user, org_id=q["org_id"], qr_id=q["id"], subject_id=user["user_id"], decision=decision,
                 severity="info" if decision in ("ALLOWED", "CONSENT_REQUIRED") else "warn", request=request, detail=message)
-    return {"decision": decision, "message": message, "released_claims": released,
+    return {"decision": decision, "message": message, "released_claims": released, "proof_id": proof["proof_id"] if proof else None,
             "claim_labels": {c: CLAIMS[c] for c in released}}
 
 
@@ -1023,7 +1056,7 @@ async def seed():
     await db.documents.create_index([("user_id", 1), ("is_deleted", 1)])
     await db.orgs.update_one({"id": DEMO_ORG_ID}, {"$setOnInsert": {
         "id": DEMO_ORG_ID, "name": "Northwind Bank (Demo)", "type": "Financial services", "verified": True, "created_at": iso(now())},
-        "$set": {"allowed_claims": ["full_name", "age_over_18", "identity_verified", "city", "trust_id", "documents_on_file"]}}, upsert=True)
+        "$set": {"allowed_claims": [c for c in CLAIMS if c != "email"]}}, upsert=True)
     try:
         await asyncio.to_thread(init_storage)
     except Exception:
@@ -1086,6 +1119,8 @@ async def generic_handler(request: Request, exc: Exception):
 
 
 app.include_router(api)
+from extras import ext  # noqa: E402
+app.include_router(ext)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=os.environ['CORS_ORIGINS'].split(','),
                    allow_methods=["*"], allow_headers=["*"])
 

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { api, errMsg, fmt } from "@/lib/api";
 import { Loader, PageHeader, StatusBadge, EmptyState } from "@/components/Shared";
 
-function Row({ s, onRevoke, busy }) {
+function Row({ s, onRevoke, onRevokeClaim, busy }) {
   const shared = Object.entries(s.released_claims || {});
   return (
     <li className="tid-card p-5" data-testid={`consent-row-${s.id}`}>
@@ -21,7 +21,8 @@ function Row({ s, onRevoke, busy }) {
         </div>
       </div>
       <p className="tid-label mt-4">{shared.length ? "Information shared" : "Nothing was shared"}</p>
-      <div className="mt-2 flex flex-wrap gap-2">{(shared.length ? shared.map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`) : s.requested_claims.map((c) => `requested: ${c.replace(/_/g, " ")}`)).map((t) => <span key={t} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{t}</span>)}</div>
+      <div className="mt-2 flex flex-wrap gap-2">{shared.length ? shared.map(([k, v]) => <span key={k} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 py-1 pl-2.5 pr-1 text-xs text-emerald-800">{k.replace(/_/g, " ")}: <b>{String(v)}</b>{s.status === "active" && <button title="Withdraw this claim" onClick={() => onRevokeClaim(s.id, k)} className="grid h-6 w-6 place-items-center rounded-md hover:bg-emerald-100" data-testid={`revoke-claim-${k}`}>×</button>}</span>) : s.requested_claims.map((c) => <span key={c} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700">requested: {c.replace(/_/g, " ")}</span>)}</div>
+      <p className="mt-2 text-[11px] text-slate-400">{s.channel === "in_person" ? "In-person face scan" : "QR request"}{s.proof ? ` · proof ${s.proof.proof_id}` : ""}</p>
     </li>
   );
 }
@@ -45,12 +46,21 @@ export default function VaultConsents() {
       setBusy(null);
     }
   };
+  const revokeClaim = async (id, claim) => {
+    try {
+      await api.post(`/vault/consents/${id}/claims`, { claims: [claim] });
+      toast.success("Claim withdrawn. The business can no longer see it.");
+      load();
+    } catch (e) {
+      toast.error(errMsg(e));
+    }
+  };
   if (!items) return <Loader />;
   return (
     <div data-testid="vault-consents">
       <PageHeader eyebrow="TrustID Vault" title="Consents & Sharing" subtitle="Every organisation that asked, what they received, and one-click revocation." />
       {items.length === 0 ? <EmptyState title="No sharing history" text="When you respond to a business verification QR, it will appear here." /> : (
-        <ul className="space-y-4">{items.map((s) => <Row key={s.id} s={s} busy={busy === s.id} onRevoke={revoke} />)}</ul>
+        <ul className="space-y-4">{items.map((s) => <Row key={s.id} s={s} busy={busy === s.id} onRevoke={revoke} onRevokeClaim={revokeClaim} />)}</ul>
       )}
     </div>
   );

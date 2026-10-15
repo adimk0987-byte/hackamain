@@ -4,17 +4,18 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { api, errMsg, fmt } from "@/lib/api";
 import { PageHeader, StatusBadge } from "@/components/Shared";
-import { FaceCamera } from "@/components/FaceCamera";
+import { BiometricScanner } from "@/components/BiometricScanner";
+import { FingerprintCard } from "@/components/FingerprintCard";
 import { useAuth } from "@/context/AuthContext";
 
 export function FaceSection({ defaultOpen = false }) {
   const { user, refresh } = useAuth();
   const [consent, setConsent] = useState(false);
   const [open, setOpen] = useState(defaultOpen);
-  const enroll = async (descriptor) => {
+  const enroll = async (scan) => {
     if (!consent) return "Please accept the biometric processing notice first.";
     try {
-      await api.post("/me/face", { descriptor, consent });
+      await api.post("/me/face", { ...scan, consent });
       toast.success("FaceGate enrolled");
       setOpen(defaultOpen);
       refresh();
@@ -36,19 +37,19 @@ export function FaceSection({ defaultOpen = false }) {
     <section id="face" className="tid-card p-6" data-testid="settings-face">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3"><ScanFace className="h-6 w-6 text-emerald-600" /><div><h3 className="font-display text-lg font-bold">FaceGate</h3><p className="text-sm text-slate-500">Face login for this account.</p></div></div>
-        <StatusBadge value={user.face_enrolled ? "active" : "not enrolled"} testId="settings-face-status" />
+        <StatusBadge value={user.face_enrolled && user.liveness_verified ? "active" : user.face_enrolled ? "liveness pending" : "not enrolled"} testId="settings-face-status" />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button className="tid-btn-primary" onClick={() => setOpen(!open)} data-testid="face-enroll-toggle">{user.face_enrolled ? "Re-enrol face" : "Enrol face"}</button>
         {user.face_enrolled && <button className="tid-btn-ghost text-rose-600" onClick={remove} data-testid="face-delete-btn"><Trash2 className="h-4 w-4" />Delete face template</button>}
       </div>
       {open && (
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <div className="mt-5 space-y-5">
           <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-900">
             <input type="checkbox" className="mt-0.5 h-5 w-5 accent-emerald-600" checked={consent} onChange={(e) => setConsent(e.target.checked)} data-testid="enroll-consent-checkbox" />
-            I consent to FaceGate creating an encrypted face template from one frame. No image is stored. Matching is not liveness detection; you can delete the template at any time.
+            I consent to FaceGate creating encrypted face templates (front, left, right) and a blink check. No image is stored; you can delete the template at any time.
           </label>
-          <FaceCamera onDescriptor={enroll} actionLabel="Capture & enrol" />
+          <BiometricScanner onComplete={enroll} disabled={!consent} title="Face & liveness scan" />
         </div>
       )}
     </section>
@@ -91,7 +92,7 @@ function DangerZone() {
 }
 
 export default function SettingsPage() {
-  const { user, expiresAt } = useAuth();
+  const { user, expiresAt, refresh } = useAuth();
   return (
     <div className="space-y-6" data-testid="settings-page">
       <PageHeader eyebrow="Account" title="Settings" subtitle="Security, biometrics and privacy controls." />
@@ -106,6 +107,7 @@ export default function SettingsPage() {
         <p className="mt-3 text-xs text-slate-400">Sessions are HttpOnly cookies validated by the server on every request. Roles are assigned by administrators only.</p>
       </section>
       {user.roles.includes("citizen") && <FaceSection />}
+      {user.roles.includes("citizen") && <FingerprintCard enrolled={user.passkey_enrolled} onChange={refresh} />}
       <DangerZone />
     </div>
   );

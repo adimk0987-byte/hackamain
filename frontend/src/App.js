@@ -9,6 +9,10 @@ import IndividualEntry from "@/pages/IndividualEntry";
 import PortalLogin from "@/pages/PortalLogin";
 import VaultDocuments from "@/pages/VaultDocuments";
 import VaultFace from "@/pages/VaultFace";
+import VaultPermissions from "@/pages/VaultPermissions";
+import ProofPage from "@/pages/ProofPage";
+import NexusFaceScan from "@/pages/NexusFaceScan";
+import NexusVerifications from "@/pages/NexusVerifications";
 import HelpPage from "@/pages/HelpPage";
 import AuthCallback from "@/pages/AuthCallback";
 import VaultHome from "@/pages/VaultHome";
@@ -42,6 +46,10 @@ function AppRouter() {
       <Route path="/v/:token" element={<Verify />} />
       <Route path="/vault" element={shell(<VaultHome />, "citizen")} />
       <Route path="/vault/identity" element={shell(<VaultIdentity />, "citizen")} />
+      <Route path="/proof/:pid" element={<ProofPage />} />
+      <Route path="/vault/permissions" element={shell(<VaultPermissions />, "citizen")} />
+      <Route path="/nexus/scan" element={shell(<NexusFaceScan />, "business")} />
+      <Route path="/nexus/verifications" element={shell(<NexusVerifications />, "business")} />
       <Route path="/vault/documents" element={shell(<VaultDocuments />, "citizen")} />
       <Route path="/vault/face" element={shell(<VaultFace />, "citizen")} />
       <Route path="/help" element={shell(<HelpPage />)} />
