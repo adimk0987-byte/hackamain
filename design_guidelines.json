@@ -1,0 +1,106 @@
+{
+  "project_name": "TrustID",
+  "theme": "Light-themed identity dashboard inspired by KAVACH",
+  "archetype": "ORGANIC & EARTHY meets PRECISION TACTICAL (Clean White background, Soft Mint Green active highlights, Deep Emerald & Obsidian accents)",
+  "color_palette": {
+    "background": "#F8FAFC",
+    "sidebar_bg": "#FFFFFF",
+    "card_bg": "#FFFFFF",
+    "primary_green": "#10B981",
+    "mint_active_bg": "#ECFDF5",
+    "mint_active_text": "#047857",
+    "text_dark": "#0F172A",
+    "text_muted": "#64748B",
+    "border_light": "#E2E8F0",
+    "accent_blue": "#3B82F6",
+    "accent_amber": "#F59E0B",
+    "accent_purple": "#8B5CF6",
+    "accent_rose": "#F43F5E",
+    "hero_overlay_dark": "#0A0F1D"
+  },
+  "typography": {
+    "headings": "Outfit, sans-serif (font-bold / font-semibold)",
+    "body": "Inter, sans-serif",
+    "code_mono": "JetBrains Mono, monospace",
+    "h1": "text-3xl lg:text-4xl font-bold tracking-tight text-slate-900",
+    "h2": "text-2xl font-bold tracking-tight text-slate-900",
+    "h3": "text-lg font-semibold text-slate-900",
+    "labels": "text-xs font-semibold uppercase tracking-wider text-slate-500"
+  },
+  "layout_architecture": {
+    "structure": "Sidebar + Main Workspace + Right Profile Summary Column",
+    "top_tabs": ["Individual (Vault)", "For Businesses (Nexus)", "Government (Sentinel)"],
+    "sidebar": {
+      "bg": "bg-white border-r border-slate-200",
+      "nav_items": ["Home", "Face Scan", "My Vault", "Verifications", "Activity", "Settings", "Help"],
+      "active_state_style": "bg-emerald-50 text-emerald-700 font-semibold border-r-4 border-emerald-500 shadow-sm"
+    },
+    "hero_card": {
+      "bg": "bg-slate-950 text-white rounded-2xl overflow-hidden shadow-xl border border-slate-800 relative",
+      "image_url": "https://images.unsplash.com/photo-1584984647264-7e6f4e6d6b91?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHxfHxtYW4lMjBwb3J0cmFpdCUyMGJpb21ldHJpYyUyMHNlY3VyaXR5fGVufDB8fHx8MTc5MjA3ODc2MXww&ixlib=rb-4.1.0&q=85",
+      "overlay_effect": "Green neon biometric reticle grid, corner target brackets, pulsing scan beam, text badge 'Face Recognition'",
+      "cta_button": "bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg hover:shadow-emerald-500/25 transition-all",
+      "chips": ["Face Recognition", "Encrypted Vault", "AI Verification", "Privacy First"]
+    },
+    "vault_grid": "grid grid-cols-1 md:grid-cols-3 gap-4",
+    "quick_actions_grid": "grid grid-cols-2 sm:grid-cols-4 gap-3",
+    "right_column": "w-full lg:w-80 flex flex-col gap-5 border-l border-slate-200 pl-0 lg:pl-6"
+  },
+  "portal_guidelines": {
+    "vault_citizen": {
+      "title": "Citizen Vault Portal",
+      "components": [
+        "Profile Identity Card with Face Match Status (Verified Badge)",
+        "Active Sharing Consents table with One-Click Revoke action",
+        "Document Vault cards (Aadhaar/National ID, Passport, Driver License, Tax ID) with status pills",
+        "Security Settings: Biometric Multi-Factor toggle, Account Deletion & Data Wipe request modal"
+      ]
+    },
+    "nexus_business": {
+      "title": "Nexus Business Verification Workspace",
+      "components": [
+        "Verification QR Code Wizard (Purpose, Required Claims checkboxes, Expiry timer, Usage limit)",
+        "Interactive QR Code Preview Card (PNG Download, Copy Link, WhatsApp Share link generator)",
+        "Private Remarks, Tags, and Task checklist per QR Code",
+        "Verification Analytics Dashboard Stats (Total Scans, Verified, Drop-offs, Avg Match Speed)"
+      ]
+    },
+    "sentinel_government": {
+      "title": "Sentinel Government Oversight Portal",
+      "components": [
+        "Access Reason Declaration Modal (Mandatory audit log before viewing case files)",
+        "Case Review List & Detailed Dossier view",
+        "Case Remarks & Flagging Workspace",
+        "Suspicious Activity Alert Feed with risk score indicators & complete Immutable Audit Log"
+      ]
+    },
+    "public_verification_consent": {
+      "title": "Public Recipient Verification & Consent Screen",
+      "components": [
+        "Purpose & Requester details card",
+        "Explicit Data Share checkboxes (Name, Face Embedding Match, Age > 21, Document Hash)",
+        "Grant Consent (Face Scan to Confirm) & Deny buttons"
+      ]
+    }
+  },
+  "image_urls": {
+    "face_scan_hero": "https://images.unsplash.com/photo-1584984647264-7e6f4e6d6b91?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHxfHxtYW4lMjBwb3J0cmFpdCUyMGJpb21ldHJpYyUyMHNlY3VyaXR5fGVufDB8fHx8MTc5MjA3ODc2MXww&ixlib=rb-4.1.0&q=85",
+    "user_avatar": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODl8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdHxlbnwwfHx8fDE3OTIwNzg3Njl8MA&ixlib=rb-4.1.0&q=85",
+    "biometric_secondary": "https://images.unsplash.com/photo-1694877286935-0e7decac9bb1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwzfHxtYW4lMjBwb3J0cmFpdCUyMGJpb21ldHJpYyUyMHNlY3VyaXR5fGVufDB8fHx8MTc5MjA3ODc2MXww&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the KAVACH design aesthetic: clean white background, light gray borders, emerald green active highlights, dark biometric scanning cards.",
+    "Add explicit data-testid attributes on every interactive element (buttons, tabs, inputs, cards, menu items, table rows). Example: data-testid='start-scanning-btn', data-testid='tab-vault-individual'.",
+    "Ensure navigation bar/sidebar links use soft mint active backgrounds (bg-emerald-50 text-emerald-700 font-semibold).",
+    "Implement FaceGate camera capture with smooth animated overlay (green target grid, scanning beam effect).",
+    "Provide seamless role tab switching (Individual / Business / Government) to navigate between Vault, Nexus, and Sentinel views.",
+    "Use Shadcn UI components heavily customized with Tailwind classes for forms, modals, tables, toasts (Sonner), and popovers.",
+    "Do NOT use pure #000000 or full screen dark gradients outside of hero/scan cards."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "All interactive elements MUST include data-testid.",
+    "No transparent dropdown/overlay backgrounds.",
+    "Never use generic centered layouts or unstyled default components.",
+    "Ensure micro-interactions on buttons, hover states, and list transitions."
+  ]
+}

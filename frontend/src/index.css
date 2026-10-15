@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'Manrope', sans-serif;
+    background: #F8FAFC;
+    color: #0F172A;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-display { font-family: 'Outfit', sans-serif; }
+.font-mono, code { font-family: 'JetBrains Mono', monospace; }
+::selection { background: #A7F3D0; color: #064E3B; }
+
+@layer base {
+    :root {
+        --background: 210 40% 98%;
+        --foreground: 222 47% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 160 84% 39%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222 47% 11%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 16% 47%;
+        --accent: 152 76% 96%;
+        --accent-foreground: 163 94% 24%;
+        --destructive: 350 89% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 160 84% 39%;
+        --radius: 0.75rem;
+    }
+}
+
+@layer base {
+    * { @apply border-border; }
+    body { @apply bg-background text-foreground; }
+}
+
+.tid-card { @apply bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)]; }
+.tid-label { @apply text-[11px] font-semibold uppercase tracking-wider text-slate-500; }
+.tid-input { @apply w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100; }
+.tid-btn { @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl text-sm font-semibold transition-[background-color,transform,box-shadow] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none; }
+.tid-btn-primary { @apply tid-btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm; }
+.tid-btn-dark { @apply tid-btn bg-slate-900 text-white hover:bg-slate-800; }
+.tid-btn-ghost { @apply tid-btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50; }
+.tid-btn-danger { @apply tid-btn bg-rose-600 text-white hover:bg-rose-700; }
+
+@keyframes scanbeam { 0% { top: 8%; } 50% { top: 88%; } 100% { top: 8%; } }
+.scan-beam { position: absolute; left: 10%; right: 10%; height: 2px; background: linear-gradient(90deg, transparent, #34D399, transparent); box-shadow: 0 0 18px 4px rgba(52, 211, 153, .55); animation: scanbeam 3s ease-in-out infinite; }
+.reticle-grid { background-image: linear-gradient(rgba(52,211,153,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(52,211,153,.12) 1px, transparent 1px); background-size: 28px 28px; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .45s ease-out both; }
+.rise-1 { animation-delay: .06s; } .rise-2 { animation-delay: .12s; } .rise-3 { animation-delay: .18s; }
