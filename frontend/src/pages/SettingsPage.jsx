@@ -7,16 +7,16 @@ import { PageHeader, StatusBadge } from "@/components/Shared";
 import { FaceCamera } from "@/components/FaceCamera";
 import { useAuth } from "@/context/AuthContext";
 
-function FaceSection() {
+export function FaceSection({ defaultOpen = false }) {
   const { user, refresh } = useAuth();
   const [consent, setConsent] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const enroll = async (descriptor) => {
     if (!consent) return "Please accept the biometric processing notice first.";
     try {
       await api.post("/me/face", { descriptor, consent });
       toast.success("FaceGate enrolled");
-      setOpen(false);
+      setOpen(defaultOpen);
       refresh();
       return null;
     } catch (e) {
@@ -105,7 +105,7 @@ export default function SettingsPage() {
         </dl>
         <p className="mt-3 text-xs text-slate-400">Sessions are HttpOnly cookies validated by the server on every request. Roles are assigned by administrators only.</p>
       </section>
-      <FaceSection />
+      {user.roles.includes("citizen") && <FaceSection />}
       <DangerZone />
     </div>
   );

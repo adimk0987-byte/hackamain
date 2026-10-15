@@ -47,7 +47,7 @@ function ConsentForm({ token, info, onResult }) {
       <div className="rounded-2xl bg-slate-50 p-5 text-center" data-testid="verify-signin-required">
         <Lock className="mx-auto h-6 w-6 text-slate-500" />
         <p className="mt-2 text-sm text-slate-600">Sign in to your TrustID to review and respond. Nothing is shared until you consent.</p>
-        <Link to="/login" state={{ from: `/v/${token}` }} className="tid-btn-primary mt-4" data-testid="verify-signin-btn">Sign in to respond</Link>
+        <Link to="/individual" state={{ from: `/v/${token}` }} className="tid-btn-primary mt-4" data-testid="verify-signin-btn">Sign in to respond</Link>
       </div>
     );
   }

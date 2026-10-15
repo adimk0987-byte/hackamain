@@ -13,10 +13,12 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 
+import asyncio
 import httpx
+import requests
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
@@ -48,7 +50,46 @@ CLAIMS = {
     "city": "City of residence",
     "trust_id": "TrustID reference",
     "email": "Email address",
+    "documents_on_file": "Document types on file (no contents)",
 }
+DOC_TYPES = {"aadhaar": "Aadhaar Card", "pan": "PAN Card", "voter_id": "Voter ID", "driving_licence": "Driving Licence",
+             "passport": "Passport", "other": "Other"}
+DOC_MAGIC = {"image/jpeg": b"\xff\xd8\xff", "image/png": b"\x89PNG", "image/webp": b"RIFF", "application/pdf": b"%PDF"}
+MAX_DOC_BYTES = 5 * 1024 * 1024
+doc_fernet = Fernet(os.environ['DOC_ENC_KEY'].encode())
+APP_NAME = os.environ['APP_NAME']
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+_storage_key = None
+
+
+def init_storage(force=False):
+    global _storage_key
+    if _storage_key and not force:
+        return _storage_key
+    r = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": os.environ['EMERGENT_LLM_KEY']}, timeout=30)
+    r.raise_for_status()
+    _storage_key = r.json()["storage_key"]
+    return _storage_key
+
+
+def put_object(path, data, content_type):
+    for attempt in (0, 1):
+        r = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage(force=attempt == 1), "Content-Type": content_type},
+                         data=data, timeout=120)
+        if r.status_code == 404 and attempt == 0:
+            continue
+        r.raise_for_status()
+        return r.json()
+
+
+def get_object(path):
+    for attempt in (0, 1):
+        r = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage(force=attempt == 1)}, timeout=60)
+        if r.status_code == 404 and attempt == 0:
+            continue
+        r.raise_for_status()
+        return r.content
 EXPIRY = {"5m": 5, "1h": 60, "24h": 1440, "7d": 10080}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DEMO_ORG_ID = "org_demo_northwind"
@@ -135,32 +176,29 @@ def public_user(u):
 
 
 async def make_profile(user_id, name, email):
-    rnd = random.Random(user_id)
-    dob = f"{rnd.randint(1982, 2004)}-{rnd.randint(1, 12):02d}-{rnd.randint(1, 28):02d}"
     await db.profiles.insert_one({
-        "user_id": user_id, "full_name": name, "display_name": name, "email": email, "dob": dob,
-        "city": rnd.choice(["Pune", "Bengaluru", "Hyderabad", "Chennai", "Jaipur", "Kochi"]),
-        "trust_id": f"TID-{secrets.token_hex(4).upper()}", "identity_status": "verified",
-        "credentials": [
-            {"id": uid("cred"), "type": "National ID (Synthetic)", "issuer": "TrustID Demo Issuer", "number": f"XXXX-XXXX-{rnd.randint(1000, 9999)}", "status": "verified", "issued": "2024-03-12"},
-            {"id": uid("cred"), "type": "Driving Licence (Synthetic)", "issuer": "Demo Transport Authority", "number": f"DL-XX-{rnd.randint(100000, 999999)}", "status": "verified", "issued": "2023-07-02"},
-            {"id": uid("cred"), "type": "Student / Employee Card (Synthetic)", "issuer": "Demo Institution", "number": f"EMP-{rnd.randint(1000, 9999)}", "status": "pending", "issued": "2025-01-20"},
-        ],
-        "created_at": iso(now()),
+        "user_id": user_id, "full_name": name, "display_name": name, "email": email, "dob": None, "city": None,
+        "trust_id": f"TID-{secrets.token_hex(4).upper()}", "created_at": iso(now()),
     })
 
 
-def age_of(dob: str):
+def age_of(dob):
+    if not dob:
+        return None
     d = datetime.fromisoformat(dob).date()
     t = now().date()
     return t.year - d.year - ((t.month, t.day) < (d.month, d.day))
 
 
-def derive_claims(profile, claims):
+async def derive_claims(profile, claims):
+    age = age_of(profile.get("dob"))
+    face = await db.face_templates.find_one({"user_id": profile["user_id"]}, {"_id": 1})
+    types = await db.documents.distinct("doc_type", {"user_id": profile["user_id"], "is_deleted": False})
     vals = {
-        "full_name": profile["full_name"], "age_over_18": age_of(profile["dob"]) >= 18,
-        "identity_verified": profile["identity_status"] == "verified", "city": profile["city"],
+        "full_name": profile["full_name"], "age_over_18": (age >= 18) if age is not None else "not provided",
+        "identity_verified": bool(face), "city": profile.get("city") or "not provided",
         "trust_id": profile["trust_id"], "email": profile["email"],
+        "documents_on_file": ", ".join(DOC_TYPES[t] for t in types) or "none",
     }
     return {c: vals[c] for c in claims if c in vals}
 
@@ -261,6 +299,20 @@ class DemoLoginIn(BaseModel):
 class ProfilePatch(BaseModel):
     display_name: Optional[str] = Field(None, min_length=2, max_length=60)
     city: Optional[str] = Field(None, min_length=2, max_length=60)
+    dob: Optional[str] = None
+
+    @field_validator("dob")
+    @classmethod
+    def v_dob(cls, v):
+        if v is None:
+            return v
+        try:
+            d = datetime.fromisoformat(v).date()
+        except ValueError:
+            raise ValueError("Date of birth must be YYYY-MM-DD")
+        if d.year < 1900 or d > now().date():
+            raise ValueError("Enter a realistic date of birth")
+        return d.isoformat()
 
 
 class DeleteIn(BaseModel):
@@ -461,6 +513,7 @@ async def delete_account(body: DeleteIn, request: Request, response: Response, u
     uidv = user["user_id"]
     await db.face_templates.delete_one({"user_id": uidv})
     await db.profiles.delete_one({"user_id": uidv})
+    await db.documents.update_many({"user_id": uidv}, {"$set": {"is_deleted": True, "deleted_at": iso(now())}})
     await db.user_sessions.delete_many({"user_id": uidv})
     await db.verification_sessions.update_many({"citizen_id": uidv}, {"$set": {"released_claims": {}, "citizen_id": None, "status": "subject_deleted"}})
     await db.users.delete_one({"user_id": uidv})
@@ -479,9 +532,13 @@ async def vault_overview(user=Depends(require("citizen"))):
     sessions = await db.verification_sessions.find({"citizen_id": user["user_id"]}, {"_id": 0}).to_list(500)
     activity = await db.audit_events.find({"$or": [{"actor_id": user["user_id"]}, {"subject_id": user["user_id"]}]}, {"_id": 0}).sort("ts", -1).to_list(8)
     face = await db.face_templates.find_one({"user_id": user["user_id"]}, {"_id": 0, "consent_at": 1})
+    docs = await db.documents.find({"user_id": user["user_id"], "is_deleted": False}, {"_id": 0, "storage_path": 0}).sort("created_at", -1).to_list(100)
+    profile.pop("credentials", None)
+    profile["identity_status"] = "face_verified" if face else "unverified"
     return {
         "profile": profile, "face_enrolled": bool(face), "face_consent_at": face["consent_at"] if face else None,
-        "stats": {"credentials": len(profile["credentials"]),
+        "documents": docs, "doc_types": DOC_TYPES,
+        "stats": {"documents": len(docs),
                   "verifications": sum(1 for s in sessions if s["decision"] == "ALLOWED"),
                   "active_shares": sum(1 for s in sessions if s["decision"] == "ALLOWED" and s["status"] == "active")},
         "activity": activity, "session_expires_at": user["session_expires_at"], "auth_method": user.get("auth_method"),
@@ -495,7 +552,72 @@ async def update_profile(body: ProfilePatch, request: Request, user=Depends(requ
         err(400, "NOTHING_TO_UPDATE", "No changes provided.")
     await db.profiles.update_one({"user_id": user["user_id"]}, {"$set": upd})
     await audit("profile_updated", actor=user, subject_id=user["user_id"], request=request, detail=", ".join(upd))
-    return await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    return await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0, "credentials": 0})
+
+
+@api.get("/vault/documents")
+async def list_documents(user=Depends(require("citizen"))):
+    docs = await db.documents.find({"user_id": user["user_id"], "is_deleted": False}, {"_id": 0, "storage_path": 0}).sort("created_at", -1).to_list(100)
+    return {"items": docs, "doc_types": DOC_TYPES}
+
+
+@api.post("/vault/documents")
+async def upload_document(request: Request, file: UploadFile = File(...), doc_type: str = Form(...), title: str = Form(""),
+                          user=Depends(require("citizen"))):
+    rate_limit(f"docup:{user['user_id']}", 20, 600)
+    if not await db.face_templates.find_one({"user_id": user["user_id"]}, {"_id": 1}):
+        err(403, "FACE_REQUIRED", "Enrol FaceGate first so your documents are linked to your face.")
+    if doc_type not in DOC_TYPES:
+        err(400, "VALIDATION_ERROR", "Choose a valid document type.")
+    ct = file.content_type
+    if ct not in DOC_MAGIC:
+        err(415, "UNSUPPORTED_FILE", "Upload a JPG, PNG, WEBP or PDF file.")
+    data = await file.read(MAX_DOC_BYTES + 1)
+    if len(data) > MAX_DOC_BYTES:
+        err(413, "FILE_TOO_LARGE", "Files must be 5 MB or smaller.")
+    if len(data) < 100 or not data.startswith(DOC_MAGIC[ct]):
+        err(415, "UNSUPPORTED_FILE", "The file content does not match its type or is empty.")
+    if await db.documents.count_documents({"user_id": user["user_id"], "is_deleted": False}) >= 50:
+        err(400, "LIMIT_REACHED", "You can store up to 50 documents.")
+    path = f"{APP_NAME}/docs/{user['user_id']}/{uuid.uuid4().hex}.enc"
+    try:
+        res = await asyncio.to_thread(put_object, path, doc_fernet.encrypt(data), "application/octet-stream")
+    except Exception:
+        logger.exception("document upload failed")
+        err(502, "STORAGE_UNAVAILABLE", "Document storage is temporarily unavailable. Please try again.")
+    name = re.sub(r"[^\w .()-]", "_", (file.filename or "document"))[:100]
+    doc = {"id": uid("doc"), "user_id": user["user_id"], "doc_type": doc_type, "type_label": DOC_TYPES[doc_type],
+           "title": (title.strip()[:80] or DOC_TYPES[doc_type]), "original_filename": name, "content_type": ct, "size": len(data),
+           "sha256": hashlib.sha256(data).hexdigest(), "storage_path": res["path"], "status": "uploaded", "is_deleted": False,
+           "created_at": iso(now())}
+    await db.documents.insert_one(dict(doc))
+    await audit("document_uploaded", actor=user, subject_id=user["user_id"], request=request, detail=f"{DOC_TYPES[doc_type]} added to vault")
+    doc.pop("storage_path")
+    return doc
+
+
+@api.get("/vault/documents/{did}/file")
+async def document_file(did: str, request: Request, user=Depends(require("citizen"))):
+    doc = await db.documents.find_one({"id": did, "user_id": user["user_id"], "is_deleted": False}, {"_id": 0})
+    if not doc:
+        err(404, "NOT_FOUND", "Document not found.")
+    try:
+        blob = await asyncio.to_thread(get_object, doc["storage_path"])
+        data = doc_fernet.decrypt(blob)
+    except Exception:
+        logger.exception("document download failed")
+        err(502, "STORAGE_UNAVAILABLE", "Document storage is temporarily unavailable. Please try again.")
+    return Response(content=data, media_type=doc["content_type"], headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                                                                         "Content-Disposition": f"inline; filename=\"{doc['original_filename']}\""})
+
+
+@api.delete("/vault/documents/{did}")
+async def delete_document(did: str, request: Request, user=Depends(require("citizen"))):
+    res = await db.documents.update_one({"id": did, "user_id": user["user_id"], "is_deleted": False}, {"$set": {"is_deleted": True, "deleted_at": iso(now())}})
+    if not res.matched_count:
+        err(404, "NOT_FOUND", "Document not found.")
+    await audit("document_deleted", actor=user, subject_id=user["user_id"], request=request, detail="Document removed from vault")
+    return {"ok": True}
 
 
 @api.get("/vault/consents")
@@ -746,7 +868,7 @@ async def verify_respond(token: str, body: RespondIn, request: Request, user=Dep
     released = {}
     if decision == "ALLOWED":
         profile = await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0})
-        released = derive_claims(profile, q["claims"])
+        released = await derive_claims(profile, q["claims"])
     if decision in ("ALLOWED", "CONSENT_REQUIRED"):
         await db.verification_sessions.insert_one({
             "id": uid("vs"), "qr_id": q["id"], "qr_name": q["name"], "org_id": q["org_id"], "org_name": org["name"], "purpose": q["purpose"],
@@ -898,9 +1020,14 @@ async def seed():
     await db.audit_events.create_index([("ts", -1)])
     await db.notes.create_index([("qr_id", 1), ("org_id", 1)])
     await db.cases.create_index("ref", unique=True)
+    await db.documents.create_index([("user_id", 1), ("is_deleted", 1)])
     await db.orgs.update_one({"id": DEMO_ORG_ID}, {"$setOnInsert": {
-        "id": DEMO_ORG_ID, "name": "Northwind Bank (Demo)", "type": "Financial services", "verified": True,
-        "allowed_claims": ["full_name", "age_over_18", "identity_verified", "city", "trust_id"], "created_at": iso(now())}}, upsert=True)
+        "id": DEMO_ORG_ID, "name": "Northwind Bank (Demo)", "type": "Financial services", "verified": True, "created_at": iso(now())},
+        "$set": {"allowed_claims": ["full_name", "age_over_18", "identity_verified", "city", "trust_id", "documents_on_file"]}}, upsert=True)
+    try:
+        await asyncio.to_thread(init_storage)
+    except Exception:
+        logger.error("Object storage init failed")
     if not DEMO_MODE:
         return
     demo = [("citizen", "Dev Sharma (Demo Citizen)", None), ("business", "Priya Nair (Demo Business Admin)", DEMO_ORG_ID),

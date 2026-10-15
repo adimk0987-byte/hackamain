@@ -24,7 +24,7 @@ export default function AuthCallback() {
       })
       .catch((e) => {
         toast.error(errMsg(e));
-        navigate("/login", { replace: true, state: { msg: errMsg(e) } });
+        navigate("/", { replace: true });
       });
   }, [location.hash, navigate, signIn]);
 

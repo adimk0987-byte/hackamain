@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, entryFor } from "@/context/AuthContext";
 import { Loader } from "@/components/Shared";
 
 export function ProtectedRoute({ role, children }) {
@@ -15,7 +15,7 @@ export function ProtectedRoute({ role, children }) {
   }, [location.pathname]);
 
   if (loading) return <Loader label="Checking your session…" />;
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  if (!user) return <Navigate to={role === "business" ? "/business" : role === "government" ? "/government" : entryFor(location.pathname)} replace state={{ from: location.pathname + location.search }} />;
   if (role && !user.roles.includes(role)) return <Navigate to="/unauthorized" replace state={{ role }} />;
   return children;
 }

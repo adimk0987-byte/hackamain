@@ -1,81 +1,40 @@
-import { Link, Navigate } from "react-router-dom";
-import { ScanFace, ShieldCheck, QrCode, Landmark, ArrowRight, Lock, EyeOff, ScrollText } from "lucide-react";
+import { Link } from "react-router-dom";
+import { User, Building2, Landmark, ArrowRight, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { useAuth, homeFor } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
-const PORTALS = [
-  [ShieldCheck, "TrustID Vault", "Citizens", "Hold your identity profile, enrol FaceGate, approve or revoke every share.", "bg-emerald-50 text-emerald-700"],
-  [QrCode, "TrustID Nexus", "Businesses", "Create expiring verification QR codes that request only policy-approved claims.", "bg-blue-50 text-blue-700"],
-  [Landmark, "TrustID Sentinel", "Government", "Case-based review with declared purpose, remarks and a complete audit trail.", "bg-violet-50 text-violet-700"],
+const OPTIONS = [
+  { key: "citizen", to: "/individual", home: "/vault", icon: User, title: "Individual", sub: "TrustID Vault", text: "Scan your face, open your personal document vault, and approve every share yourself.", tone: "bg-emerald-50 text-emerald-600", ring: "hover:border-emerald-300" },
+  { key: "business", to: "/business", home: "/nexus", icon: Building2, title: "Business", sub: "TrustID Nexus", text: "Create verification QR codes, collect consented claims and keep private remarks.", tone: "bg-blue-50 text-blue-600", ring: "hover:border-blue-300" },
+  { key: "government", to: "/government", home: "/sentinel", icon: Landmark, title: "Government", sub: "TrustID Sentinel", text: "Review assigned cases with a declared purpose and a complete audit trail.", tone: "bg-violet-50 text-violet-600", ring: "hover:border-violet-300" },
 ];
-
-const PRINCIPLES = [
-  [EyeOff, "No photos stored", "Faces are converted to an encrypted numeric template in your browser session."],
-  [Lock, "Trust Firewall", "Every release is checked for role, purpose, consent, expiry and usage."],
-  [ScrollText, "Every access logged", "Logins, consents, QR redemptions and case views are auditable."],
-];
-
-function Hero() {
-  return (
-    <section className="relative overflow-hidden rounded-[28px] bg-slate-950 text-white">
-      <img src="/hero-face.jpg" alt="Face scan" className="absolute inset-y-0 right-0 h-full w-full object-cover object-[center_38%] opacity-90 md:w-1/2" />
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-slate-950/10" />
-      <div className="absolute inset-0 reticle-grid opacity-40" />
-      <div className="relative max-w-2xl px-6 py-16 sm:px-12 sm:py-24">
-        <p className="tid-label text-emerald-300 rise">Privacy-first digital identity</p>
-        <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl rise rise-1">Prove who you are.<br /><span className="text-emerald-400">Share nothing more.</span></h1>
-        <p className="mt-6 max-w-lg text-base text-slate-300 rise rise-2">TrustID connects citizens, businesses and government reviewers through consented, claim-level verification — with FaceGate face login at the front door.</p>
-        <div className="mt-8 flex flex-wrap gap-3 rise rise-3">
-          <Link to="/register" className="tid-btn bg-emerald-500 text-slate-950 hover:bg-emerald-400" data-testid="hero-register-btn"><ScanFace className="h-4 w-4" />Register with FaceGate</Link>
-          <Link to="/login" className="tid-btn border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" data-testid="hero-login-btn">Log in <ArrowRight className="h-4 w-4" /></Link>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export default function Landing() {
-  const { user, loading } = useAuth();
-  if (!loading && user) return <Navigate to={homeFor(user)} replace />;
+  const { user } = useAuth();
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-8">
-        <Logo />
-        <div className="flex gap-2">
-          <Link to="/login" className="tid-btn-ghost" data-testid="nav-login-btn">Log in</Link>
-          <Link to="/register" className="tid-btn-dark" data-testid="nav-register-btn">Get started</Link>
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6 sm:px-8"><Logo /><span className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><ShieldCheck className="h-4 w-4 text-emerald-600" />Premium Identity Verification</span></header>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 pb-16 sm:px-8">
+        <p className="tid-label text-emerald-700 rise">Welcome to TrustID</p>
+        <h1 className="mt-3 max-w-2xl font-display text-4xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl rise rise-1">Who are you verifying as today?</h1>
+        <p className="mt-4 max-w-xl text-base text-slate-500 rise rise-2">Choose your portal. Each one is separate, with its own sign-in and its own permissions.</p>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {OPTIONS.map((o, i) => {
+            const Icon = o.icon;
+            const target = user?.roles?.includes(o.key) ? o.home : o.to;
+            return (
+              <Link key={o.key} to={target} data-testid={`choose-${o.key}`} className={`group tid-card flex flex-col p-7 transition-[transform,box-shadow,border-color] hover:-translate-y-1 hover:shadow-lg rise rise-${i + 1} ${o.ring}`}>
+                <span className={`grid h-14 w-14 place-items-center rounded-2xl ${o.tone}`}><Icon className="h-6 w-6" /></span>
+                <p className="tid-label mt-8">{o.sub}</p>
+                <h2 className="mt-1 font-display text-2xl font-bold text-slate-900">{o.title}</h2>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{o.text}</p>
+                <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">Continue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
+              </Link>
+            );
+          })}
         </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 pb-20 sm:px-8">
-        <Hero />
-        <section className="mt-16 grid gap-5 md:grid-cols-3">
-          {PORTALS.map(([Icon, t, who, d, tone], i) => (
-            <div key={t} className={`tid-card p-7 rise rise-${i + 1}`} data-testid={`portal-card-${i}`}>
-              <span className={`grid h-12 w-12 place-items-center rounded-2xl ${tone}`}><Icon className="h-5 w-5" /></span>
-              <p className="tid-label mt-6">{who}</p>
-              <h3 className="mt-1 font-display text-xl font-bold">{t}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{d}</p>
-            </div>
-          ))}
-        </section>
-        <section className="mt-16 grid gap-10 lg:grid-cols-[1fr_1.4fr]">
-          <div>
-            <p className="tid-label text-emerald-700">Built honestly</p>
-            <h2 className="mt-2 font-display text-3xl font-bold tracking-tight">Security you can explain.</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">FaceGate matches faces — it does not detect liveness, so a photo could fool it. TrustID uses synthetic demo credentials and never claims to query real government registries.</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {PRINCIPLES.map(([Icon, t, d]) => (
-              <div key={t} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <Icon className="h-5 w-5 text-emerald-600" />
-                <p className="mt-4 font-display font-semibold">{t}</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">{d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
       </main>
-      <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-500">TrustID · Hackathon MVP · All identities and cases are synthetic demo data.</footer>
+      <footer className="border-t border-slate-200 py-5 text-center text-xs text-slate-500">TrustID · Your Identity. Your Control. · Face matching is not liveness detection.</footer>
     </div>
   );
 }

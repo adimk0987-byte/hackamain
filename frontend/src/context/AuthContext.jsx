@@ -13,6 +13,9 @@ export const safeReturn = (from, u) => {
   return hit && !u.roles.includes(hit[1]) ? homeFor(u) : from;
 };
 
+export const entryFor = (path = "") =>
+  path.startsWith("/nexus") ? "/business" : path.startsWith("/sentinel") ? "/government" : "/individual";
+
 export const homeFor = (u) =>
   u?.roles?.includes("citizen") ? "/vault" : u?.roles?.includes("business") ? "/nexus" : "/sentinel";
 
@@ -55,7 +58,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       if (had) {
         toast.error("Your session expired, please log in again.");
-        navigate("/login", { state: { msg: "Your session expired, please log in again." } });
+        navigate(entryFor(window.location.pathname), { state: { msg: "Your session expired, please log in again." } });
       }
     };
     window.addEventListener("trustid:session-expired", onExpired);
@@ -80,7 +83,7 @@ export function AuthProvider({ children }) {
     } catch {
       /* session cleared client-side regardless */
     }
-    navigate("/login", { replace: true, state: { msg: "You have been signed out." } });
+    navigate("/", { replace: true });
     setUser(null);
   };
 
