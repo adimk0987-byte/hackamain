@@ -1,0 +1,170 @@
+<analysis>**original_problem_statement**: 
+The user wants to build a full-stack identity verification platform called **TrustID** (with authentication module **FaceGate**). It must be an MVP suitable for an international hackathon.
+PRODUCT REQUIREMENTS:
+- 3 Distinct Portals: Citizen/Individual, Business (Nexus), Government (Sentinel). Landing page should simply present these 3 options.
+- Features: Real face-based login, real document uploads (DigiLocker-style), fingerprint/retina scan UI integrations, QR code generation/scanning for secure data sharing, history of granted permissions, WhatsApp sharing of proofs.
+- Constraints: Light-themed UI (KAVACH inspired, extremely professional and high-quality), NO fake documents or claims (use real uploads), Emergent-managed Google Sign-In, face matching in browser validated by server.
+
+**User's preferred language**: English
+(INSTRUCT next agent to respond in English only)
+
+**what currently exists?** 
+A FastAPI + MongoDB backend and React frontend are scaffolded. Emergent-managed Google Auth and Emergent Object Storage are configured. The backend has face-matching and WebAuthn (fingerprint) logic, alongside endpoints for the three portals. The frontend includes Face-API integration, biometric scanner components, a landing page, and individual/business dashboards. However, the UI/UX is currently under a major overhaul based on user feedback to make it look professional/hackathon-winning.
+
+**Last working item**:
+- Last item agent was working: The agent was refactoring the UI/UX based on the user's heavy critique, introducing biometric scanning components (, , ) for the Individual portal, creating verification proof pages, and redesigning the  to clearly separate the three portals.
+- Status: IN PROGRESS
+- Agent Testing Done: Y (via  and )
+- Which testing method agent to use? Both backend and frontend testing agent (MANDATORY after completing the current major UI/feature overhaul).
+- User Testing Done: N
+
+**All Pending/In progress Issue list**:
+- Issue 1: UI/UX Quality does not meet user expectations (P0)
+   - Attempted fixes: Agent updated  and added biometric components, generated a hero image.
+   - Next debug checklist: Re-evaluate overall CSS/Tailwind implementation against . Ensure animations, gradients, and micro-interactions look premium.
+   - Why fix this issue and what will be achieved with the fix? User explicitly stated the UI is too noob and needs to be hackathon-ready.
+   - Status: IN PROGRESS
+   - Is recurring issue? N
+   - Should Test frontend/backend/both after fix? Frontend (Screenshots)
+   - Blocked on other issue: None
+- Issue 2: Backend still generates mock data/claims (P0)
+   - Attempted fixes: None yet.
+   - Next debug checklist: Check  lines 137-170 and 1010-1026. Remove hardcoded dummy profiles/claims.
+   - Why fix this issue and what will be achieved with the fix? User explicitly demanded no fake documents no fake claims all like a professional.
+   - Status: NOT STARTED
+   - Is recurring issue? N
+   - Should Test frontend/backend/both after fix? Both
+   - Blocked on other issue: None
+
+**In progress Task List**:
+- Task 1: Individual Portal Flow (P0)
+   - Where to resume: , , .
+   - What will be achieved with this? Complete the flow: Face scan -> Retina/Fingerprint -> Open Document locker -> Upload real docs -> View consent history.
+   - Status: IN PROGRESS
+   - Should Test frontend/backend/both after fix? Both
+   - Blocked on something: None
+- Task 2: Business Portal Flow & Sharing (P1)
+   - Where to resume: , , .
+   - What will be achieved with this? Business scans QR -> Face scan validation -> Views actual claims -> Ability to download proof & share via WhatsApp.
+   - Status: IN PROGRESS
+   - Should Test frontend/backend/both after fix? Both
+   - Blocked on something: None
+
+**Upcoming and Future Tasks**:
+Upcoming Tasks:
+- P1: Implement Retina Scan UI/UX flow alongside Face and Fingerprint (User specifically requested retina scanning).
+- P1: Complete Document Upload Integration via Emergent Object Storage (ensure files are stored and retrieved correctly for Digilocker).
+- P2: Government Portal (Sentinel) full implementation (Search cases, review verification results).
+- P2: WhatsApp share button with prefilled recipient message for Business QR proofs.
+- P0: Call testing agent to perform end-to-end testing of the entire application.
+
+Future Tasks:
+- P2: PDF/SVG download for QRs.
+- P2: Audit history endpoints and UI for Government/Business.
+
+**Completed work in this session**:
+- Initial FastAPI + React + MongoDB setup (DONE)
+- Emergent-managed Google Auth integration (DONE)
+- Basic Face-API configuration for frontend (DONE)
+- Emergent Object Storage backend config via  (DONE)
+- Design Guidelines extraction via design_agent (DONE)
+- WebAuthn setup for fingerprint integration (DONE)
+
+**Earlier issues found/mentioned but not fixed**:
+Issue 1: Retina scan UI missing
+- Debug checklist: Create a mock UI scanner for retina in  to fulfill user's request.
+- Why to solve this issue and what will be achieved with this? User requested retina and fingerprint and face scaning.
+- Should Test frontend/backend/both after fix: Frontend
+- Is recurring issue? N
+
+**Known issue recurrence from previous fork**:
+- Issue recurrence in previous fork: None (First run)
+- Recurrence count: 0
+- Status: NOT STARTED
+
+**Code Architecture**:
+
+
+**Key Technical Concepts**:
+- Frontend: React, Tailwind CSS, shadcn/ui components, face-api.js, WebAuthn API.
+- Backend: FastAPI, Motor (Async MongoDB), PyJWT, python-multipart (for object storage).
+- Database: MongoDB.
+- Architecture: 3 distinct portals managed via React Router, authenticated via Emergent Google Auth.
+
+**key DB schema**:
+- : {user_id, email, name, roles}
+- : {user_id, face_descriptor, allowed_claims, city, identity_verified}
+- : {qr_id, business_id, purpose, requested_claims, expires_at, status}
+- : {session_id, user_id, expires_at}
+
+**changes in tech stack**:
+- User originally asked for SQLite/PostgreSQL, but system rules mandated MongoDB. MongoDB is correctly implemented.
+
+**All files of reference**:
+- : Contains the KAVACH light-theme guidelines. Must be strictly followed to fix UI issues.
+- : Core API logic, currently contains some dummy seed data that needs removal.
+- : Contains WebAuthn logic.
+- : The entry point featuring the 3 portals.
+-  & : Newly created for user's biometric requests.
+
+**Areas that need refactoring**:
+- : Remove  dummy data seeding. The user demands real document uploads to act as the source of truth, not fake generated data.
+
+**key api endpoints**:
+- 
+- 
+-  & 
+- 
+- 
+
+**Critical Info for New Agent**:
+- **UI/UX is the top priority right now**. The user is building for an international hackathon and specifically complained the previous UI was too noob. Ensure extreme polish (gradients, spacing, micro-interactions) according to .
+- Do not generate fake claims/documents anymore. Build the Digilocker UI to actually accept file uploads via the Emergent Object storage.
+- Keep the 3 portals strictly separated from the Homepage.
+- Backend routes MUST be prefixed with .
+- Frontend MUST use .
+
+**documents and test reports created in this job**:
+- 
+- 
+
+**Last 10 User Messages and any pending HUMAN messages**:
+1. (User) Master Prompt: Build TrustID/FaceGate, 3 portals, Face login, QR, privacy. (Completed initial structure)
+2. (User) Ask_human response: Light theme, browser face match, Google Sign-in. (Implemented)
+3. (User) System reminder about admin email. (Acknowledged)
+4. (User) System reminder about persistent paths. (Acknowledged)
+5. (User) Feedback: Homepage needs 3 distinct options (Indi, Business, Govt). Individual needs real document uploads (Digilocker). UI needs to look like screenshot. (Implemented base routing/pages)
+6. (User) Feedback: UI is too noob. Make it highly professional. Individual needs face, retina, fingerprint -> document locker -> history of permissions. Business scans face -> sees claims via QR -> verify proof -> share via WhatsApp. (In Progress - biometric components added, UI overhaul pending)
+
+**Project Health Check**:
+- Broken: The frontend is mid-refactor to accommodate the new biometric components and 3-portal distinct routing.
+- Mocked: Backend still contains  dummy seed data which violates the latest user requirement.
+
+**3rd Party Integrations**:
+- Emergent-managed Google Auth — uses Emergent integrations (No keys required)
+- Emergent Object Storage — uses Emergent integrations (No keys required,  installed)
+- Gemini Nano Banana (Image Generation) — uses Emergent LLM Key (Used to generate hero image)
+
+**Testing status**:
+- Testing agent used after significant changes: NO (User interrupted with heavy UI changes before agent could hand off to testing agent).
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: None yet.
+- Known regressions: None, but UI is in a transitional state.
+
+**Credentials to test flow**:
+Check . Admin account is .
+
+**What agent forgot to execute**:
+- Did not remove the mock data generation from the backend despite the user explicitly stating no fake documents no fake claims.
+- Did not implement the UI/UX for a retina scan, only face and fingerprint.
+- Did not invoke the testing agent before the user paused, meaning there is no E2E test report yet.
+- Did not implement the specific WhatsApp sharing functionality/button requested by the user.
+
+**Debugging checklist for current issue**
+Issue: UI/UX overhaul and Biometric/Document Flow completion
+Frontend files to check: 
+-  (Ensure premium 3-portal selection)
+-  (Link all 3 biometrics: Face, Fingerprint, Retina)
+-  (Ensure it acts as a real upload Digilocker)
+Backend files to check:
+-  (Remove mock claim generation)</analysis>
